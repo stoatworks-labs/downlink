@@ -26,7 +26,7 @@ in `source/Link.*`, or any check's tolerance.
   A cue line is `frame  Parameter Name  value` (`#` starts a comment), in the same
   units as `--set`; `@audio` as the name cues the synthetic spectrum's level. Values
   interpolate linearly between a name's cues and hold before the first and after the
-  last. Frame *n* is clocked at `n / 60` s. An unknown name exits 2 before any frame;
+  last. Frame *n* is clocked at `n / 60` s, or `n / N` with `--fps N`. An unknown name exits 2 before any frame;
   a partial frame at EOF ends the stream with exit 0.
 - Every shader the plugin compiles, as files: `./build/dltest --dump-shaders DIR`
 

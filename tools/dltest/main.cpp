@@ -32,7 +32,7 @@
 	`--pipe` takes the fleet's frame format:
 
 		ffmpeg -i in.mov -f rawvideo -pix_fmt rgba - \
-		  | dltest --pipe --size 1920x1080 [--script cues.txt] [--audio 0.5] \
+		  | dltest --pipe --size 1920x1080 [--fps 30] [--script cues.txt] [--audio 0.5] \
 		  | ffmpeg -f rawvideo -pix_fmt rgba -s 1920x1080 -i - out.mov
 */
 
@@ -2100,7 +2100,7 @@ float valueAt( const Track& track, int frame )
 	return track.back().second;
 }
 
-int runPipe( Session& session, const std::string& scriptPath, float audioLevel )
+int runPipe( Session& session, const std::string& scriptPath, float audioLevel, double fps )
 {
 	std::map< unsigned int, Track > automation;
 	Track audioTrack;
@@ -2151,9 +2151,9 @@ int runPipe( Session& session, const std::string& scriptPath, float audioLevel )
 			session.plugin.SetFloatParameter( track.first, valueAt( track.second, index ) );
 		const float level = !audioTrack.empty() ? valueAt( audioTrack, index ) : audioLevel;
 		if( level >= 0.0f )
-			injectSpectrum( session.plugin, level, index / 60.0 );
+			injectSpectrum( session.plugin, level, index / fps );
 
-		if( !session.render( index, frame ) )
+		if( !session.renderAt( index / fps, frame ) )
 			return 1;
 
 		const Image out = session.readBack();
@@ -2214,6 +2214,7 @@ void usage()
 		"  --bench           ms/frame at 720p, 1080p, 4K (--bench-frames N)\n"
 		"  --pipe            raw RGBA frames on stdin, raw RGBA frames on stdout\n"
 		"  --script PATH     cues for --pipe: 'frame Name Value' ('@audio' is the spectrum level)\n"
+		"  --fps N           --pipe's clock: frame n is at n / N s (default 60)\n"
 		"  --dump-shaders D  write every shader the plugin compiles into D\n" );
 }
 } // namespace
@@ -2223,6 +2224,7 @@ int main( int argc, char** argv )
 	std::string outPath = "/tmp/downlink.png", scriptPath, sourceName = "card", dumpDir;
 	int width = 1280, height = 720, frames = 30, level = 128, benchFrames = 30;
 	float audioLevel = -1.0f;
+	double pipeFps   = 60.0;
 	bool wantList = false, wantBench = false, wantPipe = false, allowNoGL = false;
 	std::vector< std::string > settings, modes;
 
@@ -2257,6 +2259,8 @@ int main( int argc, char** argv )
 			width  = std::atoi( size.substr( 0, x ).c_str() );
 			height = std::atoi( size.substr( x + 1 ).c_str() );
 		}
+		else if( arg == "--fps" && hasNext )
+			pipeFps = std::strtod( argv[ ++i ], nullptr );
 		else if( arg == "--frames" && hasNext )
 			frames = std::atoi( argv[ ++i ] );
 		else if( arg == "--bench-frames" && hasNext )
@@ -2284,9 +2288,9 @@ int main( int argc, char** argv )
 			return 2;
 		}
 	}
-	if( width <= 0 || height <= 0 || frames <= 0 )
+	if( width <= 0 || height <= 0 || frames <= 0 || !( pipeFps > 0.0 ) )
 	{
-		std::fprintf( stderr, "width, height and frames must all be positive\n" );
+		std::fprintf( stderr, "width, height, frames and fps must all be positive\n" );
 		return 2;
 	}
 
@@ -2428,7 +2432,7 @@ int main( int argc, char** argv )
 		//A reader that hangs up must end the take with exit 1 and a message,
 		//not SIGPIPE's silent 141: write() then fails and the loop says so.
 		std::signal( SIGPIPE, SIG_IGN );
-		const int status = runPipe( session, scriptPath, audioLevel );
+		const int status = runPipe( session, scriptPath, audioLevel, pipeFps );
 		session.end();
 		return finish( status );
 	}
