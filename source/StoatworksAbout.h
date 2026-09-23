@@ -15,7 +15,7 @@ namespace stoatworks::about
 {
     inline constexpr auto name = "Downlink";
     inline constexpr auto slug = "downlink";
-    inline constexpr auto hook = "Analogue FM satellite TV, sparklies and all, for Resolume";
+    inline constexpr auto hook = "FM satellite TV, sparklies and all, for Resolume";
     inline constexpr auto licence = "MIT";
     inline constexpr auto guide = "https://stoatworks-labs.com/software/downlink/guide/";
     inline constexpr auto page = "https://stoatworks-labs.com/software/downlink/";
