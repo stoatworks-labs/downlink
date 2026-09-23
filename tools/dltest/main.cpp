@@ -1989,6 +1989,37 @@ int runBench( const std::vector< std::string >& settings, int frames )
 	std::printf( "%d frames each, best of three runs, after a 10-frame warm-up, glFinish both sides.\n", frames );
 	std::printf( "Discriminator at %d x 4fsc = %.2f MHz; link raster %d x %d, video raster %d x %d.\n",
 	             link::kOversample, link::kFsFine / 1e6, link::kLinkLine, link::kRows, link::kLine, link::kRows );
+	{
+		Session s;
+		s.plugin.SetProfileForTest( true );
+		if( s.begin( 1920, 1080 ) )
+		{
+			const Image card = buildCard( 1920, 1080 );
+			for( int comp = 0; comp < 2; ++comp )
+			{
+				s.plugin.SetFloatParameter( Downlink::DL_COMPOSITE, static_cast< float >( comp ) );
+				std::map< std::string, double > best;
+				std::vector< std::string > order;
+				for( int f = 0; f < 12; ++f )
+				{
+					s.render( f, card );
+					glFinish();
+					for( auto& e : s.plugin.ProfileForTest() )
+					{
+						if( !best.count( e.first ) )
+							order.push_back( e.first ), best[ e.first ] = 1e9;
+						if( f >= 2 )
+							best[ e.first ] = std::min( best[ e.first ], e.second );
+					}
+				}
+				std::printf( "%s passes at 1920x1080 (GPU time, best of 10):", comp ? "Component" : "PAL" );
+				for( auto& n : order )
+					std::printf( " %s %.3f", n.c_str(), best[ n ] );
+				std::printf( " ms\n" );
+			}
+			s.end();
+		}
+	}
 	std::printf( "resolution   PAL ms/frame   Component ms/frame   %% of a 60fps frame (PAL)\n" );
 	for( const Size& s : sizes )
 	{

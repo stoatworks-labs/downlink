@@ -84,7 +84,9 @@ constexpr double kSlowClampSeconds = 2e-3;
 constexpr int kMaxPreTaps  = 64; //causal, at kFsLink
 constexpr int kMaxDeTaps   = 128;//causal, at kFsVideo
 constexpr int kLpfHalf     = 32; //symmetric, at kFsLink
-constexpr int kMaxNoiseHalf = 48;//symmetric, at the fine rate
+constexpr int kMaxNoiseHalf = 47;//symmetric, at the fine rate
+/// The link shader's window arrays: P Sub + 1 + 2 NoiseHalf fine samples.
+constexpr int kLinkWindow   = 128;
 /// History rows before row 0 the Slow clamp integrates over (analytic: the
 /// vertical interval and the tail of the previous field carry no picture).
 constexpr int kHistoryRows = 576;

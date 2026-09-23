@@ -86,6 +86,28 @@ void uniformVec3( FFGLShader& shader, const char* name, const double* v )
 
 /// Draw one full-buffer pass into `target`.
 template< typename Body >
+void pass( PassBuffer& target, FFGLShader& shader, FFGLScreenQuad& quad, Body&& body );
+
+struct PassTimer
+{
+	std::vector< std::pair< std::string, GLuint > >* queries;
+	PassTimer( std::vector< std::pair< std::string, GLuint > >* q, const char* name ) : queries( q )
+	{
+		if( !queries )
+			return;
+		GLuint id = 0;
+		glGenQueries( 1, &id );
+		glBeginQuery( GL_TIME_ELAPSED, id );
+		queries->emplace_back( name, id );
+	}
+	~PassTimer()
+	{
+		if( queries )
+			glEndQuery( GL_TIME_ELAPSED );
+	}
+};
+
+template< typename Body >
 void pass( PassBuffer& target, FFGLShader& shader, FFGLScreenQuad& quad, Body&& body )
 {
 	ScopedFBOBinding fbo( target.GetGLID(), ScopedFBOBinding::RB_REVERT );
@@ -188,7 +210,8 @@ FFResult Downlink::InitGL( const FFGLViewportStruct* vp )
 		const char* name;
 	} const stages[] = {
 		{ &resampleShader, shaders::kResampleShader, "resample" },
-		{ &transmitShader, shaders::kTransmitShader, "transmit" },
+		{ &encodeShader, shaders::kEncodeShader, "encode" },
+		{ &transmitShader, shaders::kPreemphShader, "preemph" },
 		{ &linkShader, shaders::kLinkShader, "link" },
 		{ &probeShader, shaders::kLinkProbeShader, "link probe" },
 		{ &detectShader, shaders::kDetectShader, "detect" },
@@ -400,12 +423,16 @@ FFResult Downlink::ProcessOpenGL( ProcessOpenGLStruct* pGL )
 		rowData[ 2 * i + 1 ] = rows.slope[ i ];
 	}
 
+	//The link writes four link samples a texel, one block per channel.
+	constexpr int kPacked = ( link::kLinkLine + 3 ) / 4;
+
 	//Every allocation before anything binds a texture: allocating leaves the
 	//active unit bound to nothing.
 	using S = PassBuffer::Sampling;
 	const bool allocated = resampled.Ensure( link::kLinkActive, link::kRows, GL_RGBA32F, S::Nearest )
+	                       && encoded.Ensure( link::kLinkLine, link::kRows, GL_RGBA32F, S::Nearest )
 	                       && transmitted.Ensure( link::kLinkLine, link::kRows, GL_RGBA32F, S::Nearest )
-	                       && linked.Ensure( link::kLinkLine, link::kRows, GL_RGBA32F, S::Nearest )
+	                       && linked.Ensure( kPacked * ( component ? 3 : 1 ), link::kRows, GL_RGBA32F, S::Nearest )
 	                       && detected.Ensure( link::kLine, link::kRows, GL_RGBA32F, S::Nearest )
 	                       && video.Ensure( link::kLine, link::kRows, GL_RGBA32F, S::Nearest )
 	                       && porch.Ensure( 1, link::kRows, GL_RGBA32F, S::Nearest )
@@ -426,7 +453,11 @@ FFResult Downlink::ProcessOpenGL( ProcessOpenGLStruct* pGL )
 	const double fieldCycles      = link::SubcarrierPhaseForField( rows.field ) / ( 2.0 * 3.14159265358979323846 );
 	const double rowCycles        = link::SubcarrierStepPerRow() / ( 2.0 * 3.14159265358979323846 );
 
+	auto* prof = profile ? &queries : nullptr;
+	if( profile )
+		queries.clear();
 	//1. resample
+	{ PassTimer timer( prof, "resample" );
 	pass( resampled, resampleShader, quad, [ & ] {
 		ScopedSamplerActivation s0( 0 );
 		Scoped2DTextureBinding t0( input.Handle );
@@ -437,51 +468,74 @@ FFResult Downlink::ProcessOpenGL( ProcessOpenGLStruct* pGL )
 		quad.Draw();
 	} );
 
-	//2. transmit
-	pass( transmitted, transmitShader, quad, [ & ] {
+	}
+	//2. encode
+	{ PassTimer timer( prof, "encode" );
+	pass( encoded, encodeShader, quad, [ & ] {
 		ScopedSamplerActivation s0( 0 );
 		Scoped2DTextureBinding t0( resampled.TextureID() );
-		uniformInt( transmitShader, "Picture", 0 );
-		uniformArray( transmitShader, "Pre", r.preTaps, link::kMaxPreTaps );
-		uniformInt( transmitShader, "PreCount", static_cast< int >( std::min< size_t >( r.preTaps.size(), link::kMaxPreTaps ) ) );
-		uniformInt( transmitShader, "ComponentMode", component ? 1 : 0 );
-		uniformVec3( transmitShader, "Rest", r.rest );
-		uniformFloat( transmitShader, "FieldCycles", fieldCycles );
-		uniformFloat( transmitShader, "RowCycles", rowCycles );
-		uniformFloat( transmitShader, "LinkCycles", link::kFsc / link::kFsLink );
-		uniformInt( transmitShader, "TestMode", testMode );
-		uniformFloat( transmitShader, "TestLevel", testLevel );
-		uniformFloat( transmitShader, "TestAmp", testAmp );
-		uniformFloat( transmitShader, "TestFreq0", testF0 * 1e6 / link::kFsLink );
-		uniformFloat( transmitShader, "TestFreqStep", testStep * 1e6 / link::kFsLink );
+		uniformInt( encodeShader, "Picture", 0 );
+		uniformInt( encodeShader, "ComponentMode", component ? 1 : 0 );
+		uniformVec3( encodeShader, "Rest", r.rest );
+		uniformFloat( encodeShader, "FieldCycles", fieldCycles );
+		uniformFloat( encodeShader, "RowCycles", rowCycles );
+		uniformFloat( encodeShader, "LinkCycles", link::kFsc / link::kFsLink );
+		uniformInt( encodeShader, "TestMode", testMode );
+		uniformFloat( encodeShader, "TestLevel", testLevel );
+		uniformFloat( encodeShader, "TestAmp", testAmp );
+		uniformFloat( encodeShader, "TestFreq0", testF0 * 1e6 / link::kFsLink );
+		uniformFloat( encodeShader, "TestFreqStep", testStep * 1e6 / link::kFsLink );
 		quad.Draw();
 	} );
-
-	//3. the link
+	}
+	//3. pre-emphasis
+	{ PassTimer timer( prof, "preemph" );
+	pass( transmitted, transmitShader, quad, [ & ] {
+		ScopedSamplerActivation s0( 0 );
+		Scoped2DTextureBinding t0( encoded.TextureID() );
+		uniformInt( transmitShader, "Encoded", 0 );
+		uniformArray( transmitShader, "Pre", r.preTaps, link::kMaxPreTaps );
+		uniformInt( transmitShader, "PreCount", static_cast< int >( std::min< size_t >( r.preTaps.size(), link::kMaxPreTaps ) ) );
+		quad.Draw();
+	} );
+	}
+	//4. the link
+	{ PassTimer timer( prof, "link" );
 	pass( linked, linkShader, quad, [ & ] {
 		ScopedSamplerActivation s0( 0 );
 		Scoped2DTextureBinding t0( transmitted.TextureID() );
 		ScopedSamplerActivation s1( 1 );
 		Scoped2DTextureBinding t1( rowTexture );
 		setLinkUniforms( linkShader );
-		//The receiver's scale: 1 V of video is `deviation` MHz. The negative
-		//control detunes what the receiver believes.
 		uniformFloat( linkShader, "Deviation", r.deviation );
-		uniformInt( linkShader, "Channels", component ? 3 : 1 );
+		uniformInt( linkShader, "PackedWidth", kPacked );
+		//Four link samples share a window, unless a test's sampling rate
+		//makes the window longer than the shader's arrays.
+		const int half = static_cast< int >( r.noiseTaps.size() / 2 );
+		int perRun     = 4;
+		while( perRun > 1 && perRun * r.sub + 1 + 2 * half > link::kLinkWindow )
+			perRun /= 2;
+		uniformInt( linkShader, "PerRun", perRun );
 		quad.Draw();
 	} );
 
-	//4. detect
+	}
+	//5. detect
+	{ PassTimer timer( prof, "detect" );
 	pass( detected, detectShader, quad, [ & ] {
 		ScopedSamplerActivation s0( 0 );
 		Scoped2DTextureBinding t0( linked.TextureID() );
 		uniformInt( detectShader, "Link", 0 );
 		uniformArray( detectShader, "Lpf", r.lpfTaps, 65 );
 		uniformInt( detectShader, "LinkWidth", link::kLinkLine );
+		uniformInt( detectShader, "PackedWidth", kPacked );
+		uniformInt( detectShader, "Channels", component ? 3 : 1 );
 		quad.Draw();
 	} );
 
-	//5. de-emphasis
+	}
+	//6. de-emphasis
+	{ PassTimer timer( prof, "deemph" );
 	pass( video, deemphShader, quad, [ & ] {
 		ScopedSamplerActivation s0( 0 );
 		Scoped2DTextureBinding t0( detected.TextureID() );
@@ -497,7 +551,9 @@ FFResult Downlink::ProcessOpenGL( ProcessOpenGLStruct* pGL )
 		quad.Draw();
 	} );
 
-	//6. porch
+	}
+	//7. porch
+	{ PassTimer timer( prof, "porch" );
 	pass( porch, porchShader, quad, [ & ] {
 		ScopedSamplerActivation s0( 0 );
 		Scoped2DTextureBinding t0( video.TextureID() );
@@ -507,7 +563,9 @@ FFResult Downlink::ProcessOpenGL( ProcessOpenGLStruct* pGL )
 		quad.Draw();
 	} );
 
-	//7. clamp
+	}
+	//8. clamp
+	{ PassTimer timer( prof, "clamp" );
 	pass( clamped, clampShader, quad, [ & ] {
 		ScopedSamplerActivation s0( 0 );
 		Scoped2DTextureBinding t0( porch.TextureID() );
@@ -531,7 +589,9 @@ FFResult Downlink::ProcessOpenGL( ProcessOpenGLStruct* pGL )
 		quad.Draw();
 	} );
 
-	//8. decode
+	}
+	//9. decode
+	{ PassTimer timer( prof, "decode" );
 	pass( decoded, decodeShader, quad, [ & ] {
 		ScopedSamplerActivation s0( 0 );
 		Scoped2DTextureBinding t0( video.TextureID() );
@@ -548,11 +608,13 @@ FFResult Downlink::ProcessOpenGL( ProcessOpenGLStruct* pGL )
 		quad.Draw();
 	} );
 
-	//9. output, to the host, in the host's viewport: ScopedFBOBinding puts the
+	}
+	//10. output, to the host, in the host's viewport: ScopedFBOBinding puts the
 	//framebuffer back and nothing else.
 	glBindFramebuffer( GL_FRAMEBUFFER, pGL->HostFBO );
 	glViewport( hostViewport[ 0 ], hostViewport[ 1 ], hostViewport[ 2 ], hostViewport[ 3 ] );
 	{
+		PassTimer timer( prof, "output" );
 		ScopedShaderBinding shader( outputShader.GetGLID() );
 		ScopedSamplerActivation s0( 0 );
 		Scoped2DTextureBinding t0( input.Handle );
@@ -570,11 +632,11 @@ FFResult Downlink::ProcessOpenGL( ProcessOpenGLStruct* pGL )
 //---------------------------------------------------------------------------
 FFResult Downlink::DeInitGL()
 {
-	for( FFGLShader* s : { &resampleShader, &transmitShader, &linkShader, &probeShader, &detectShader, &deemphShader,
+	for( FFGLShader* s : { &resampleShader, &encodeShader, &transmitShader, &linkShader, &probeShader, &detectShader, &deemphShader,
 	                       &porchShader, &clampShader, &decodeShader, &outputShader } )
 		s->FreeGLResources();
 	quad.Release();
-	for( PassBuffer* b : { &resampled, &transmitted, &linked, &detected, &video, &porch, &clamped, &decoded, &probe } )
+	for( PassBuffer* b : { &resampled, &encoded, &transmitted, &linked, &detected, &video, &porch, &clamped, &decoded, &probe } )
 		b->Destroy();
 	if( rowTexture != 0 )
 	{
@@ -658,6 +720,25 @@ void Downlink::SetReceiverDeviationDetuneForTest( double fraction )
 {
 	rxDevDetune = fraction;
 }
+void Downlink::SetProfileForTest( bool on )
+{
+	profile = on;
+}
+
+std::vector< std::pair< std::string, double > > Downlink::ProfileForTest()
+{
+	std::vector< std::pair< std::string, double > > out;
+	for( auto& q : queries )
+	{
+		GLuint64 ns = 0;
+		glGetQueryObjectui64v( q.second, GL_QUERY_RESULT, &ns );
+		out.emplace_back( q.first, ns / 1e6 );
+		glDeleteQueries( 1, &q.second );
+	}
+	queries.clear();
+	return out;
+}
+
 void Downlink::SetOversampleForTest( int value )
 {
 	oversample = std::clamp( value, 2, 64 ) / 2 * 2;

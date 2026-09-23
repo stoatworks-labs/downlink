@@ -63,11 +63,9 @@ void main()
 //---------------------------------------------------------------------------
 // 2. transmit. The uplink's baseband and its pre-emphasis.
 //---------------------------------------------------------------------------
-const char* const kTransmitShader = R"(#version 410 core
+const char* const kEncodeShader = R"(#version 410 core
 uniform sampler2D Picture;//1842 x 576, straight RGBA, scan row = texel row
 
-uniform float Pre[ 64 ];//causal pre-emphasis taps at the link rate
-uniform int PreCount;
 uniform int ComponentMode;
 uniform vec3 Rest;//the carrier's rest level per channel, volts
 
@@ -123,14 +121,33 @@ vec3 baseband( int n, int y )
 	return vec3( 0.7 * ( yuv.x + yuv.y * sin( phase ) + yuv.z * vSign * cos( phase ) ) );
 }
 
+//The baseband in volts, less the carrier's rest level: what the modulator
+//deviates from.
 void main()
 {
-	int n = int( gl_FragCoord.x );
-	int y = int( gl_FragCoord.y );
+	fragColor = vec4( baseband( int( gl_FragCoord.x ), int( gl_FragCoord.y ) ) - Rest, 1.0 );
+}
+)";
 
+//---------------------------------------------------------------------------
+// 3. pre-emphasis, causal, at the link rate. Before the line starts the
+// signal is what the first sample is (the porch, or the test level).
+//---------------------------------------------------------------------------
+const char* const kPreemphShader = R"(#version 410 core
+uniform sampler2D Encoded;//2002 x 576, volts less rest
+uniform float Pre[ 64 ];
+uniform int PreCount;
+
+in vec2 uv;
+out vec4 fragColor;
+
+void main()
+{
+	int n    = int( gl_FragCoord.x );
+	int y    = int( gl_FragCoord.y );
 	vec3 acc = vec3( 0.0 );
 	for( int i = 0; i < PreCount; ++i )
-		acc += Pre[ i ] * ( baseband( n - i, y ) - Rest );
+		acc += Pre[ i ] * texelFetch( Encoded, ivec2( max( n - i, 0 ), y ), 0 ).rgb;
 	fragColor = vec4( acc, 1.0 );
 }
 )";
@@ -174,7 +191,7 @@ void main()
 //perfectly, so it sits in the carrier's frame and needs no rotation at all;
 //the CPU hands it the narrower taps and the smaller noise.
 
-uniform sampler2D Transmit;//2002 x 576: pre-emphasised video minus rest, volts
+uniform sampler2D Transmit;//2002 x 576: pre-emphasised video less rest, volts
 uniform sampler2D RowTable;//( history + 576 ) x 1: dispersal MHz, MHz per video sample
 uniform int HistoryRows;
 uniform int LinkWidth;
@@ -193,7 +210,7 @@ uniform uint FieldLow;
 uniform int Linearise;     //psi = Im( m ), unwrapped: a discriminator with no clicks
 uniform int FlipRotation;  //rotate the noise the wrong way round
 
-const int MAXW = 136;//Sub (<= 32) + 1 + 2 NoiseHalf (<= 96)
+const int MAXW = 128;//P Sub + 1 + 2 NoiseHalf; the CPU keeps every use inside it
 
 uint pcg( uint v )
 {
@@ -202,30 +219,38 @@ uint pcg( uint v )
 	return ( word >> 22u ) ^ word;
 }
 
-//Circular complex Gaussian, E|u|^2 = 1: |u|^2 is exponential.
-vec2 gaussian( uint key, int l )
+//Circular complex Gaussian, E|u|^2 = 1 (|u|^2 is exponential), turned
+//through `turn` radians: one sincos for the draw and the rotation together.
+vec2 gaussian( uint key, int l, float turn )
 {
 	uint h1  = pcg( key + uint( l + 65536 ) );
 	uint h2  = pcg( h1 ^ 0x68bc21ebu );
 	float u1 = ( float( h1 >> 8u ) + 0.5 ) / 16777216.0;
 	float u2 = float( h2 >> 8u ) / 16777216.0;
 	float r  = sqrt( -log( u1 ) );
-	float a  = 6.28318530718 * u2;
+	float a  = 6.28318530718 * u2 + turn;
 	return r * vec2( cos( a ), sin( a ) );
 }
 
 //The instantaneous frequency at fine sample l, MHz: Catmull-Rom between link
-//samples (flat to 0.05 dB at 5 MHz), plus the dispersal along the row.
-float frequency( int l, int y, int c, vec2 row )
+//samples (flat to 0.05 dB at 5 MHz), plus the dispersal along the row. The
+//four link samples are fetched once per link sample, not once per fine one:
+//`cached` holds them for link sample `at`.
+float frequency( int l, int y, int c, vec2 row, inout int at, inout vec4 cached )
 {
 	float p  = float( l ) / float( Sub );
 	float fi = floor( p );
 	float t  = p - fi;
 	int i    = int( fi );
-	float x0 = texelFetch( Transmit, ivec2( clamp( i - 1, 0, LinkWidth - 1 ), y ), 0 )[ c ];
-	float x1 = texelFetch( Transmit, ivec2( clamp( i, 0, LinkWidth - 1 ), y ), 0 )[ c ];
-	float x2 = texelFetch( Transmit, ivec2( clamp( i + 1, 0, LinkWidth - 1 ), y ), 0 )[ c ];
-	float x3 = texelFetch( Transmit, ivec2( clamp( i + 2, 0, LinkWidth - 1 ), y ), 0 )[ c ];
+	if( i != at )
+	{
+		at = i;
+		cached = vec4( texelFetch( Transmit, ivec2( clamp( i - 1, 0, LinkWidth - 1 ), y ), 0 )[ c ],
+		               texelFetch( Transmit, ivec2( clamp( i, 0, LinkWidth - 1 ), y ), 0 )[ c ],
+		               texelFetch( Transmit, ivec2( clamp( i + 1, 0, LinkWidth - 1 ), y ), 0 )[ c ],
+		               texelFetch( Transmit, ivec2( clamp( i + 2, 0, LinkWidth - 1 ), y ), 0 )[ c ] );
+	}
+	float x0 = cached.x, x1 = cached.y, x2 = cached.z, x3 = cached.w;
 	float v  = x1 + 0.5 * t * ( ( x2 - x0 ) + t * ( ( 2.0 * x0 - 5.0 * x1 + 4.0 * x2 - x3 ) + t * ( 3.0 * ( x1 - x2 ) + x3 - x0 ) ) );
 	return Deviation * v + row.x + row.y * float( l ) / float( Oversample );
 }
@@ -235,47 +260,45 @@ float wrapPi( float x )
 	return x - 6.28318530718 * floor( ( x + 3.14159265359 ) / 6.28318530718 );
 }
 
-//The discriminator over link sample o of row y, channel c: the sum of its
-//Sub fine outputs d[ k ], k = o Sub - Sub/2 + 1 + s for s < Sub, in volts of
-//pre-emphasised video. When probeS is one of those s, probe gets
+//The discriminator over link samples o0 .. o0 + P - 1 (P <= 4) of row y,
+//channel c. Link sample o is the sum of its Sub fine outputs d[ k ],
+//k = o Sub - Sub/2 + 1 + s for s < Sub, in volts of pre-emphasised video:
+//the phase change from o Sub - Sub/2 to o Sub + Sub/2, centred on link
+//sample o's own instant, fine sample o Sub. Off centre by even half a link
+//sample would delay the chroma against the decoder's reference and turn
+//every hue. When probeS is one of those s (and P is 1), probe gets
 //( d, dphi, psi ) there.
-float linkPixel( int o, int y, int c, int probeS, out vec3 probe )
+//
+//P link samples share one noise window, so a fragment computing four of them
+//draws Sub P + 1 + 2 NoiseHalf fine samples of noise rather than four times
+//Sub + 1 + 2 NoiseHalf.
+vec4 linkRun( int o0, int P, int y, int c, int probeS, out vec3 probe )
 {
 	probe    = vec3( 0.0 );
 	vec2 row = texelFetch( RowTable, ivec2( HistoryRows + y, 0 ), 0 ).xy;
 	uint key = pcg( pcg( pcg( Seed * 4u + uint( c ) ) ^ FieldLow ) + uint( y ) * 2654435769u );
 
-	//The fine samples summed are centred on link sample o's instant, fine
-	//sample o Sub: the phase change from o Sub - Sub/2 to o Sub + Sub/2. Off
-	//centre by even half a link sample would delay the chroma against the
-	//decoder's reference and turn every hue.
-	int lo       = o * Sub - Sub / 2 - NoiseHalf;
-	int n        = Sub + 1 + 2 * NoiseHalf;
-	float rot    = FlipRotation == 1 ? -1.0 : 1.0;
+	int lo    = o0 * Sub - Sub / 2 - NoiseHalf;
+	int n     = P * Sub + 1 + 2 * NoiseHalf;
+	float rot = FlipRotation == 1 ? -1.0 : 1.0;
 
 	float th[ MAXW ];
 	vec2 w[ MAXW ];
-	float theta = 0.0;
+	float theta   = 0.0;
+	int at        = -1 << 30;
+	vec4 cached   = vec4( 0.0 );
 	for( int q = 0; q < n; ++q )
 	{
 		int l = lo + q;
 		if( q > 0 )
-			theta += RadPerMHz * frequency( l, y, c, row );
+			theta += RadPerMHz * frequency( l, y, c, row, at, cached );
 		th[ q ] = theta;
-		vec2 u  = gaussian( key, l );
-		if( Rotate == 1 )
-		{
-			float cs = cos( theta );
-			float sn = rot * sin( theta );
-			w[ q ]   = vec2( u.x * cs - u.y * sn, u.x * sn + u.y * cs );
-		}
-		else
-			w[ q ] = u;
+		w[ q ]  = gaussian( key, l, Rotate == 1 ? rot * theta : 0.0 );
 	}
 
-	float sum     = 0.0;
+	vec4 sums     = vec4( 0.0 );
 	float prevPsi = 0.0;
-	for( int s = 0; s <= Sub; ++s )
+	for( int s = 0; s <= P * Sub; ++s )
 	{
 		int q  = NoiseHalf + s;
 		vec2 m = vec2( 0.0 );
@@ -293,33 +316,46 @@ float linkPixel( int o, int y, int c, int probeS, out vec3 probe )
 		float psi = Linearise == 1 ? m.y : atan( r.y, r.x );
 		if( s > 0 )
 		{
-			float dphi = RadPerMHz * frequency( lo + q, y, c, row );
+			float dphi = th[ q ] - th[ q - 1 ];
 			float d    = Linearise == 1 ? dphi + psi - prevPsi : wrapPi( dphi + psi - prevPsi );
-			sum += d;
-			if( s - 1 == probeS )
+			int p      = ( s - 1 ) / Sub;
+			sums[ p ] += d;
+			if( P == 1 && s - 1 == probeS )
 				probe = vec3( d, dphi, psi );
 		}
 		prevPsi = psi;
 	}
-	return sum / ( RadPerMHz * float( Sub ) * Deviation );
+	return sums / ( RadPerMHz * float( Sub ) * Deviation );
 }
 )"
 
 const char* const kLinkShader = DOWNLINK_LINK_LIBRARY R"(
-uniform int Channels;//1 composite, 3 component
+uniform int PackedWidth;//link samples / 4, rounded up: one channel's block
+uniform int PerRun;     //4, or fewer when a test's sampling rate would not fit MAXW
 
 in vec2 uv;
 out vec4 fragColor;
 
+//Four link samples per texel, one channel per block of PackedWidth texels.
 void main()
 {
-	int o      = int( gl_FragCoord.x );
-	int y      = int( gl_FragCoord.y );
-	vec4 value = vec4( 0.0 );
+	int x  = int( gl_FragCoord.x );
+	int y  = int( gl_FragCoord.y );
+	int c  = x / PackedWidth;
+	int o0 = 4 * ( x - c * PackedWidth );
+	vec4 v = vec4( 0.0 );
 	vec3 unused;
-	for( int c = 0; c < Channels; ++c )
-		value[ c ] = linkPixel( o, y, c, -1, unused );
-	fragColor = value;
+	for( int b = 0; b < 4; b += PerRun )
+	{
+		int count = min( PerRun, LinkWidth - ( o0 + b ) );
+		if( count <= 0 )
+			break;
+		vec4 part = linkRun( o0 + b, count, y, c, -1, unused );
+		for( int i = 0; i < PerRun; ++i )
+			if( b + i < 4 )
+				v[ b + i ] = part[ i ];
+	}
+	fragColor = v;
 }
 )";
 
@@ -336,7 +372,7 @@ void main()
 	int o  = int( gl_FragCoord.x );
 	int py = int( gl_FragCoord.y );
 	vec3 probe;
-	linkPixel( o, ProbeRow0 + py / Sub, ProbeChannel, py % Sub, probe );
+	linkRun( o, 1, ProbeRow0 + py / Sub, ProbeChannel, py % Sub, probe );
 	fragColor = vec4( probe, 0.0 );
 }
 )";
@@ -345,20 +381,29 @@ void main()
 // 4. detect: the video lowpass at the link rate, then every second sample.
 //---------------------------------------------------------------------------
 const char* const kDetectShader = R"(#version 410 core
-uniform sampler2D Link;//2002 x 576
+uniform sampler2D Link;//( PackedWidth x channels ) x 576, four link samples a texel
 uniform float Lpf[ 65 ];
 uniform int LinkWidth;
+uniform int PackedWidth;
+uniform int Channels;
 
 in vec2 uv;
 out vec4 fragColor;
 
+float linkAt( int o, int y, int c )
+{
+	o = clamp( o, 0, LinkWidth - 1 );
+	return texelFetch( Link, ivec2( c * PackedWidth + o / 4, y ), 0 )[ o % 4 ];
+}
+
 void main()
 {
-	int j   = int( gl_FragCoord.x );
-	int y   = int( gl_FragCoord.y );
+	int j    = int( gl_FragCoord.x );
+	int y    = int( gl_FragCoord.y );
 	vec4 acc = vec4( 0.0 );
-	for( int i = -32; i <= 32; ++i )
-		acc += Lpf[ i + 32 ] * texelFetch( Link, ivec2( clamp( 2 * j - i, 0, LinkWidth - 1 ), y ), 0 );
+	for( int c = 0; c < Channels; ++c )
+		for( int i = -32; i <= 32; ++i )
+			acc[ c ] += Lpf[ i + 32 ] * linkAt( 2 * j - i, y, c );
 	fragColor = acc;
 }
 )";
@@ -568,7 +613,8 @@ void main()
 const Named kAll[] = {
 	{ "vertex", kVertexShader },
 	{ "resample", kResampleShader },
-	{ "transmit", kTransmitShader },
+	{ "encode", kEncodeShader },
+	{ "preemph", kPreemphShader },
 	{ "link", kLinkShader },
 	{ "linkprobe", kLinkProbeShader },
 	{ "detect", kDetectShader },

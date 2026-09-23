@@ -135,6 +135,9 @@ public:
 	void SetReceiverDeviationDetuneForTest( double fraction );
 	/// Discriminator samples per video sample (16 ships; 64 for convergence).
 	void SetOversampleForTest( int oversample );
+	/// Time every pass with GL timer queries; read after the next frame.
+	void SetProfileForTest( bool on );
+	std::vector< std::pair< std::string, double > > ProfileForTest();
 
 	enum class Buffer
 	{
@@ -158,11 +161,11 @@ private:
 	void resolve();
 	void setLinkUniforms( ffglex::FFGLShader& shader );
 
-	ffglex::FFGLShader resampleShader, transmitShader, linkShader, probeShader, detectShader, deemphShader,
+	ffglex::FFGLShader resampleShader, encodeShader, transmitShader, linkShader, probeShader, detectShader, deemphShader,
 	    porchShader, clampShader, decodeShader, outputShader;
 	ffglex::FFGLScreenQuad quad;
 
-	downlink::PassBuffer resampled, transmitted, linked, detected, video, porch, clamped, decoded, probe;
+	downlink::PassBuffer resampled, encoded, transmitted, linked, detected, video, porch, clamped, decoded, probe;
 	GLuint rowTexture = 0;
 	std::vector< float > rowData;
 	downlink::link::RowTable rows;
@@ -188,6 +191,8 @@ private:
 	double deDetune      = 0.0;
 	double rxDevDetune   = 0.0;
 	int oversample       = downlink::link::kOversample;
+	bool profile         = false;
+	std::vector< std::pair< std::string, GLuint > > queries;
 
 	float params[ DL_COUNT ] = {};
 	float audioBins[ kAudioBins ] = {};
