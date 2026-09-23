@@ -18,11 +18,12 @@
 	3. **preemph** -- the CCIR 405 pre-emphasis network, causal.
 
 	4. **link** -- the FM carrier, the channel and the discriminator, per link
-	   sample, in parallel. See the comment at the top of `kLinkLibrary`: the
+	   sample, in parallel. See the comment at the top of the link library: the
 	   discriminator output at fine sample k is arg( r[k] conj r[k-1] ), and it
 	   needs nothing but the local phase increment and noise drawn in a local
-	   frame, so no phase is ever integrated along a line. 2002 x 576, in
-	   volts of pre-emphasised video.
+	   frame, so no phase is ever integrated along a line. Four link samples
+	   a texel, the component channels side by side in blocks of 501 texels,
+	   in volts of pre-emphasised video.
 
 	5. **detect** -- the video lowpass at the link rate, and the decimation to
 	   the video rate. 1001 x 576.
@@ -40,9 +41,10 @@
 	10. **output** -- the host's raster, and the mix.
 
 	`kLinkProbeShader` is the harness's: the same library as `kLinkShader`,
-	with a main that writes each fine sample's discriminator output instead of
+	with a main that writes each fine sample's ( d, dphi, psi ) instead of
 	summing them, so clicks are counted in the discriminator's own output.
-	Both are assembled at compile time from one macro, so they cannot drift.
+	Both are assembled at compile time from one macro, so they cannot drift;
+	`dltest --dump-shaders` writes the assembled text for glslc.
 */
 namespace downlink::shaders
 {

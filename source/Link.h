@@ -17,8 +17,10 @@
 	average. The uplink and the downlink's detector run at twice that,
 	`kFsLink`, 2002 samples a line with the porches. And the discriminator
 	itself runs at `kOversample` times the video rate, 283.75 MHz, eight fine
-	samples per link sample, fine enough that its 2 pi slips are the ones
-	Rice counted in continuous time (see AGENTS.md, "Why sixteen").
+	samples per link sample. A sampled discriminator misses some of the slips
+	a continuous one makes (3.6% of Rice's rate at 4 dB, 11% at 10 dB here);
+	the harness predicts the sampled rate exactly, and Rice's is met at 64x.
+	See AGENTS.md, "The sampled discriminator is not Rice's".
 
 	**One row is one line.** Each row carries a back porch (the clamp's
 	reference), the active line and a front porch, so a receiver clamp has
