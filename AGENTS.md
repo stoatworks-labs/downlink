@@ -409,10 +409,11 @@ Release build, at 320×180 and 1280×720 (the link's numbers are identical at bo
   `com.stoatworks.ffgl.downlink`, ad-hoc signs, and `oxbow` reports `SW Downlink` /
   `DL01` / `effect` and renders 120 frames through `plugMain`.
 - **Cost**, best of three runs of 30 frames after a warm-up, `glFinish` both sides, on a
-  GPU shared with other builds: PAL **3.1 ms** at 720p, **3.2 ms** at 1080p, **3.9 ms**
-  at 4K; Component **5.8 / 8.2 / 6.5 ms**. The link raster is fixed, so the output size
+  GPU shared with other builds: PAL **3.1 ms** at 720p, **3.2 ms** at 1080p, **3.7 ms**
+  at 4K; Component **5.8 / 5.9 / 6.5 ms**. The link raster is fixed, so the output size
   hardly matters. By timer query at 1080p the link is 1.5 ms (PAL) and 4.2 ms
-  (Component), the de-emphasis 0.39, the pre-emphasis 0.31.
+  (Component), the de-emphasis 0.36, the pre-emphasis 0.36. The run before it, minutes
+  earlier on the same shared machine, read Component 8.2 ms at 1080p.
 
 ### Assumed, or not done
 
@@ -423,7 +424,7 @@ Release build, at 320×180 and 1280×720 (the link's numbers are identical at bo
   `--threshold` checks its total.
 - **Clicks cluster** below threshold (index of dispersion 1.19 at 4 dB), so the
   Poisson interval the spec asks for is slightly optimistic there.
-- **3 ms of GPU for PAL and 6–8 for Component** may be too much beside other effects on
+- **3 ms of GPU for PAL and 6 for Component** may be too much beside other effects on
   a show machine. The link is the cost; halving the discriminator's rate would quarter
   it and lose 13–36% of the clicks (see `--rice`).
 - **The Windows build is CI-only**, and CI cannot run yet.

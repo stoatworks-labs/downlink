@@ -123,8 +123,8 @@ Render cost at the defaults, best of three runs of 30 frames after a warm-up,
 | | PAL ms/frame | % of a 60fps frame | Component ms/frame |
 | --- | --- | --- | --- |
 | 1280×720 | 3.1 | 18.5% | 5.8 |
-| 1920×1080 | 3.2 | 18.9% | 8.2 |
-| 3840×2160 | 3.9 | 23.7% | 6.5 |
+| 1920×1080 | 3.2 | 19.0% | 5.9 |
+| 3840×2160 | 3.7 | 22.3% | 6.5 |
 
 The link runs at its own raster whatever the output size, so the output size hardly
 matters; the numbers move with whatever else the GPU was doing. The discriminator is
@@ -139,7 +139,7 @@ CGL context, plus an `oxbow` load. Still untested:
 
 - how 15 controls in four groups, one of them the audio input, present in Arena's
   inspector;
-- whether 3 ms of GPU (6–8 for Component) is comfortable beside other effects on a
+- whether 3 ms of GPU (6 for Component) is comfortable beside other effects on a
   show machine;
 - what Resolume's FFT bins are, and so how hard `Audio Fade` bites;
 - what the host's real clock does over a long session.
