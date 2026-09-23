@@ -365,9 +365,9 @@ that `--polarity` is the only check that can see which way the noise turns.
 - **The shaders are dumped, not scraped**, for glslc: the link and the probe are one
   macro and two mains, which the fleet's regex extraction cannot expand.
 - **No factory presets**, like pitch and slowscan. The user guide is `docs/USER-GUIDE.md`.
-- **`StoatworksAbout.h` and `ATTRIBUTIONS.md` are provisional hand copies** with
-  `guide=""`, in the shape the fleet's syncs generate, as graticule did. Register the
-  project and re-run the syncs before the first release.
+- **`StoatworksAbout.h` and `ATTRIBUTIONS.md` are generated** by stoatworks-backend's
+  `sync-about.py` and `sync-attributions.py` from the website's projects.json and the
+  attribution master lists. Edit those, not these files; the next sync overwrites them.
 - **The commit trailer names the model that wrote this** (`Claude Opus 5.5`), as the
   session's instructions required, not the brief's `Fable 5.1`.
 

@@ -192,7 +192,10 @@ cue sheet, for rendering footage through the real shaders.
 See [`CLAUDE.md`](CLAUDE.md) for the full command reference and
 [`AGENTS.md`](AGENTS.md) for the model, the derivation and the traps.
 
+<!-- attributions:start -->
+This project is built on other people's work — see [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
+<!-- attributions:end -->
+
 ## Licence
 
-MIT — see [LICENSE](LICENSE). Third-party components and the standards it implements
-are listed in [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
+MIT — see [LICENSE](LICENSE).

@@ -356,8 +356,9 @@ It records which shader failed, if one did, with the compiler's own message.
 
 ## About
 
-The last group, **About**, carries the plugin's name, version, licence and maker, and buttons that
-open the project page, the source on GitHub and the support page in your browser.
+The last group, **About**, carries the plugin's name, version, licence and maker, and buttons
+that open this guide, the project page, the source on GitHub and the support page in your
+browser.
 
 ## Reporting something
 
