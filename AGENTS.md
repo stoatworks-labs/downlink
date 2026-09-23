@@ -364,7 +364,7 @@ that `--polarity` is the only check that can see which way the noise turns.
   and mixed; alpha is the clip's.
 - **The shaders are dumped, not scraped**, for glslc: the link and the probe are one
   macro and two mains, which the fleet's regex extraction cannot expand.
-- **No factory presets**, like pitch and slowscan. **No user guide yet.**
+- **No factory presets**, like pitch and slowscan. The user guide is `docs/USER-GUIDE.md`.
 - **`StoatworksAbout.h` and `ATTRIBUTIONS.md` are provisional hand copies** with
   `guide=""`, in the shape the fleet's syncs generate, as graticule did. Register the
   project and re-run the syncs before the first release.
@@ -429,7 +429,7 @@ Release build, at 320×180 and 1280×720 (the link's numbers are identical at bo
   it and lose 13–36% of the clicks (see `--rice`).
 - **The Windows build is CI-only**, and CI cannot run yet.
 - **Resolume's 64 bins are unmeasured**, as fleet-wide.
-- **No OpenFX port, no browser demo, no user guide.** Not required for 0.1.0.
+- **No OpenFX port, no browser demo.** Not required for 0.1.0.
 - **Nothing has been through a show.**
 
 ---
