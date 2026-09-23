@@ -57,6 +57,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <csignal>
 #include <unistd.h>
 #include <vector>
 
@@ -2424,6 +2425,9 @@ int main( int argc, char** argv )
 
 	if( wantPipe )
 	{
+		//A reader that hangs up must end the take with exit 1 and a message,
+		//not SIGPIPE's silent 141: write() then fails and the loop says so.
+		std::signal( SIGPIPE, SIG_IGN );
 		const int status = runPipe( session, scriptPath, audioLevel );
 		session.end();
 		return finish( status );
