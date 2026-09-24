@@ -10,7 +10,7 @@ tell anybody this works.
 
 Analogue FM satellite television, as an FFGL 2.1 effect (`DL01`, shown as
 `SW Downlink`) for Resolume Arena and Avenue. C++17 + GLSL 4.10, CMake, universal
-macOS `.bundle` and a Windows `.dll`. MIT, intended home
+macOS `.bundle` and a Windows `.dll`. MIT, public at
 `github.com/stoatworks-labs/downlink`.
 
 Built 2026-09-23 in one session from `~/Projects/resolume/specs/SPEC-downlink.md`,
@@ -423,8 +423,14 @@ Release build, at 320×180 and 1280×720 (the link's numbers are identical at bo
 
 ### Assumed, or not done
 
-- ☠️ **Never loaded into Resolume**, on either platform. The inspector presentation,
-  the audio input's routing, the host's clock and its FFT bins are all untested.
+- ☠️ **Never loaded into Resolume on macOS.** On Windows, v0.1.0's CI build passed
+  the fleet Arena gate 9 of 9 in Arena 7.27.1 on llvmpipe (2026-09-24): it loads,
+  registers as `SW Downlink` / `DL01` / effect, all 21 host controls match the
+  declaration, it renders and the log is clean. 11 controls moved the picture (2 under
+  a precondition); Deviation, Dispersal and IF Bandwidth read inconclusive, because the
+  link's noise changes every frame; Audio and Audio Fade were not testable, because
+  win-lab has no sound device. On macOS the inspector presentation is untested, and on
+  either platform the audio input's routing, the host's clock and its FFT bins are.
 - **The coloured grain** (the FM noise triangle landing on the chroma subcarrier) falls
   out of the chain and is visible, but no check measures the noise spectrum's shape;
   `--threshold` checks its total.
@@ -433,7 +439,9 @@ Release build, at 320×180 and 1280×720 (the link's numbers are identical at bo
 - **3 ms of GPU for PAL and 6 for Component** may be too much beside other effects on
   a show machine. The link is the cost; halving the discriminator's rate would quarter
   it and lose 13–36% of the clicks (see `--rice`).
-- **The Windows build is CI-only**, and CI cannot run yet.
+- **Windows has only met a software renderer.** CI builds it on GitHub, and Arena on
+  win-lab's llvmpipe is the one host it has run in; that says nothing about a GPU or
+  about speed.
 - **Resolume's 64 bins are unmeasured**, as fleet-wide.
 - **No OpenFX port.** Not required for 0.1.0. The browser demo exists; see below for
   what it is not.

@@ -23,8 +23,9 @@ captured from Resolume. CNR 7.5 dB, just under the knee, with the defaults other
 > against 8.57 predicted; Threshold Ext. moves it 3.84 dB against 3.90; both emphasis networks
 > are within 0.019 dB of ITU-R F.405; and eight deliberately broken models are shown to make those
 > checks fail. All 14 controls that act on the picture are shown to change it. It has **not been
-> loaded into Resolume yet**. The one host it has run in is the fleet's own test host, `oxbow`,
-> for 120 frames.
+> loaded into Resolume on macOS yet**. The one host it has run in there is the fleet's own test
+> host, `oxbow`, for 120 frames.
+> On Windows, a build of v0.1.0 loads, registers and renders in Resolume Arena 7.27.1, with every control matching what the plugin declares — on software rendering, so that says nothing about a GPU. The two controls that follow the music, Audio and Audio Fade, could not be tried there, because the test machine has no sound device.
 > Try it on a spare layer before you put it in a show.
 >
 > This codebase was created with AI assistance, directed and reviewed by a human author.
@@ -334,8 +335,9 @@ It records which shader failed, if one did, with the compiler's own message.
 
 ## Known limits
 
-- **Not loaded into Resolume yet**, and nothing has driven the controls in a host. How 15 controls
-  in four groups read in the inspector, how the audio input is routed, what Resolume's 64 audio
+- **Not loaded into Resolume on macOS yet**, and nothing has driven the controls in a show. On
+  Windows it loads and renders in Arena, on software rendering, with every control as declared.
+  How 15 controls in four groups read in the inspector on a Mac, how the audio input is routed, what Resolume's 64 audio
   bins hold, and what a long session's clock does are all untested.
 - **The receiver is one design.** The IF is Gaussian rather than any real SAW filter. Threshold
   Ext. is an ideal tracking filter, not a PLL. The decoder's colour reference is perfect: there is
@@ -350,7 +352,7 @@ It records which shader failed, if one did, with the compiler's own message.
 - **The coloured grain** falls out of the chain and is visible, but no check measures the noise
   spectrum's shape.
 - **The picture is always a PAL field**, 921 × 576, whatever the composition.
-- **No presets**, no OpenFX version and no browser demo.
+- **No presets** and no OpenFX version.
 
 ---
 

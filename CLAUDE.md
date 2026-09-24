@@ -87,8 +87,11 @@ in `source/Link.*`, or any check's tolerance.
 - FFGL id is `DL01`, display name `SW Downlink`.
 
 ## Not done yet
-- **Never loaded into Resolume.** Everything numeric is measured offline on macOS,
-  plus an `oxbow` load. The Windows build is CI-only and has never run.
+- **Never loaded into Resolume on macOS.** Everything numeric is measured offline on
+  macOS, plus an `oxbow` load. The Windows CI build of v0.1.0 passed the Arena gate
+  9 of 9 on win-lab (Arena 7.27.1, llvmpipe) on 2026-09-24; Deviation, Dispersal and
+  IF Bandwidth read inconclusive there, and Audio and Audio Fade went untested, because
+  win-lab has no sound device.
 - **The browser demo's CPU half is a port and nothing checks it.** `demo/plugin.js`
   re-implements `Link.cpp`, the conversions in `Controls.h` and `Downlink.cpp`'s
   `resolve()`, clock voting and uniforms in JavaScript. `check_shaders.py` covers the

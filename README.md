@@ -13,9 +13,11 @@
 > the model says. The dispersal triangle comes through each clamp exactly as
 > predicted, pixel by pixel, at two rasters. The emphasis networks meet ITU-R F.405
 > within its own tolerance. Eight negative controls prove the checks can fail. It has
-> **never been loaded into Resolume**. It is loaded by
+> **never been loaded into Resolume on macOS**, where it is loaded by
 > [oxbow](https://github.com/stoatworks-labs/oxbow), which is a real FFGL host and is
-> not Resolume. See [Status](#status).
+> not Resolume. On Windows, a build of v0.1.0 loads, registers and renders in Resolume
+> Arena 7.27.1 with every control as declared, on software rendering. See
+> [Status](#status).
 
 Analogue FM satellite television, as an FFGL effect for [Resolume](https://resolume.com)
 Arena and Avenue.
@@ -131,22 +133,32 @@ matters; the numbers move with whatever else the GPU was doing. The discriminato
 most of it (1.5 ms by timer query for PAL, 4.2 ms for Component's three carriers).
 macOS figures only.
 
+### In Resolume, on Windows
+
+**Resolume Arena 7.27.1** (win-lab, Mesa llvmpipe, no GPU, 2026-09-24): a CI build of
+v0.1.0 loads from Extra Effects, registers as `SW Downlink` / `DL01` / effect, all 21
+host controls match the declaration in name, order, type, range and default, it
+renders, and Arena's log stays clean: 9 of 9 of the fleet gate's checks. 11 controls
+moved the picture, 2 of them under a precondition. Deviation, Dispersal and IF
+Bandwidth read inconclusive, because the link's noise changes every frame; the two
+audio controls, Audio and Audio Fade, could not be tested, because win-lab has no
+sound device. Software rendering says nothing about a GPU or about speed.
+
 ### Not established
 
-It has **never been loaded into Resolume**, on either platform. Everything above was
-compiled, rendered and measured offline against the real plugin class in a headless
-CGL context, plus an `oxbow` load. Still untested:
+It has **never been loaded into Resolume on macOS**. Everything above the Windows
+section was compiled, rendered and measured offline against the real plugin class in
+a headless CGL context, plus an `oxbow` load. Still untested:
 
 - how 15 controls in four groups, one of them the audio input, present in Arena's
-  inspector;
+  inspector on a Mac;
 - whether 3 ms of GPU (6 for Component) is comfortable beside other effects on a
   show machine;
 - what Resolume's FFT bins are, and so how hard `Audio Fade` bites;
 - what the host's real clock does over a long session.
 
 The coloured grain falls out of the chain and is visible, but no check measures the
-noise spectrum's shape. The Windows build is CI-only and has never run. Nothing has
-been through a show. There is no OpenFX port. The
+noise spectrum's shape. Nothing has been through a show. There is no OpenFX port. The
 [browser demo](https://downlink-demo.stoatworks-labs.com/) runs the plugin's own ten
 shaders, but the link's CPU half — the filter design, the noise statistics, the per-row
 dispersal table, the clock — is a hand port to JavaScript that only a reader checks,
