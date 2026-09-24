@@ -281,7 +281,7 @@ statistics, and every tolerance on the link is statistical.
 | `--resize` | frame after 1× → 2× → 1× equals a fresh instance's | exact | none: no state between frames |
 | `--clock` | rows at 7.049 s and six days later | 2 float ULPs of 1 MHz; measured 0 | none: CPU, double |
 | `--rice` | the integrator vs `r erfc( √ρ )` at δf = 0; the sampled rate's shortfall closing from below at 8×, 16×, 32× | 1e-6 relative; monotone | none |
-| `sweep.py` | each control changes ≥ 1 subpixel | any change | run at 320×180 locally, 160×90 in CI |
+| `sweep.py` | each control changes ≥ 1 subpixel | any change | run at 320×180 locally; not in CI (too slow on the software renderer) |
 
 Two things are deliberately not relied on. Exact cancellation: no check asserts `== 0`
 on a difference of computed floats except the seed and resize checks, which compare
@@ -290,8 +290,13 @@ the effective CNR, taps and deviation back from the plugin (`ResolvedForTest`) r
 than trusting the slider it set.
 
 What might still differ on another rasteriser: a software GL that cannot create a 4.1
-core context at all. That is the GitHub runner case: CI runs `--offline`, compiles the
-shaders through glslc, and the GL checks SKIP loudly.
+core context at all. CI runs `--offline` and compiles the shaders through glslc. The
+GitHub runner does get Apple's software renderer, but the link is run per sample on the
+GPU and the software renderer is roughly a hundred times slower: measured with
+`DLTEST_RENDERER=software`, `--emphasis` takes ~25 s and `--dispersal` ~4 min at
+320×180, and every other rendered check more than four minutes, so the full set ran past
+a 40-minute timeout on every push. CI therefore renders only those two; the rest, and the
+sweep, are the dev Mac's (`tools/verify.sh`) and the Windows build is swept in Arena.
 
 ---
 

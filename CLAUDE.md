@@ -49,6 +49,9 @@ in `source/Link.*`, or any check's tolerance.
 - Everything with no GL (what CI runs first): `./build/dltest --offline`
   (`--names --clock --emphasis-offline --rice --negative-offline`)
 - CI's GL step: add `--allow-no-gl`, which SKIPs loudly when there is no context
+- Apple's software renderer on a Mac with a GPU: `DLTEST_RENDERER=software`. CI's runner
+  falls back to it, and it is far too slow for the link: CI runs only `--emphasis
+  --dispersal` rendered; every other GL check and the sweep run in `tools/verify.sh` only
 - Quieter: `--quiet` prints failures and the summary only
 - No dead controls: `python3 tools/sweep.py --binary build/dltest` (`--size WxH`, `--jobs N`)
 - Render cost and per-pass GPU time: `./build/dltest --bench` (`--bench-frames N`)

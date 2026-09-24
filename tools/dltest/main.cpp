@@ -262,9 +262,28 @@ CGLContextObj createContext()
 		                                            kCGLPFAAlphaSize,
 		                                            static_cast< CGLPixelFormatAttribute >( 8 ),
 		                                            static_cast< CGLPixelFormatAttribute >( 0 ) };
+	//DLTEST_RENDERER=software asks for Apple's software renderer by id, on a
+	//Mac that has a GPU. It is what a GPU-less CI runner falls back to, so a
+	//check that fails -- or crawls -- only in CI can be reproduced here.
+	const CGLPixelFormatAttribute generic[]     = { kCGLPFAOpenGLProfile,
+		                                            static_cast< CGLPixelFormatAttribute >( kCGLOGLPVersion_GL4_Core ),
+		                                            kCGLPFARendererID,
+		                                            static_cast< CGLPixelFormatAttribute >( kCGLRendererGenericFloatID ),
+		                                            kCGLPFAColorSize,
+		                                            static_cast< CGLPixelFormatAttribute >( 24 ),
+		                                            kCGLPFAAlphaSize,
+		                                            static_cast< CGLPixelFormatAttribute >( 8 ),
+		                                            static_cast< CGLPixelFormatAttribute >( 0 ) };
 	CGLPixelFormatObj format = nullptr;
 	GLint count              = 0;
-	if( CGLChoosePixelFormat( accelerated, &format, &count ) != kCGLNoError || format == nullptr )
+	const char* renderer     = std::getenv( "DLTEST_RENDERER" );
+	if( renderer != nullptr && std::strcmp( renderer, "software" ) == 0 )
+	{
+		if( CGLChoosePixelFormat( generic, &format, &count ) != kCGLNoError || format == nullptr )
+			return nullptr;
+		std::fprintf( stderr, "dltest: DLTEST_RENDERER=software, Apple's software renderer\n" );
+	}
+	else if( CGLChoosePixelFormat( accelerated, &format, &count ) != kCGLNoError || format == nullptr )
 		if( CGLChoosePixelFormat( software, &format, &count ) != kCGLNoError || format == nullptr )
 			return nullptr;
 	CGLContextObj context = nullptr;

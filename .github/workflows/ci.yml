@@ -60,21 +60,25 @@ jobs:
         run: ./build/dltest --offline
 
       - name: Rendered
-        # If the runner can make a software 4.1 context these run at
-        # 320x180, the raster verify.sh also runs locally; if it cannot,
-        # --allow-no-gl turns the failure into a loud SKIP rather than a red
-        # build that says nothing about the plugin. They always run on the
-        # dev Mac, in tools/verify.sh.
-        timeout-minutes: 40
-        run: >
-          ./build/dltest --emphasis --clicks --polarity --threshold --dispersal
-          --identity --seed --resize --negative --size 320x180 --allow-no-gl
+        # Only what Apple's software renderer can finish. The link is run per
+        # sample on the GPU, and a GitHub macOS runner has no accelerated
+        # context: on the software renderer --emphasis takes ~25 s and
+        # --dispersal ~4 min at 320x180, while --clicks, --polarity,
+        # --threshold, --identity, --seed, --resize and --negative each take
+        # more than four minutes (measured with DLTEST_RENDERER=software), and
+        # the full set ran past a 40-minute timeout on every push. Those, and
+        # the control sweep, run on the dev Mac's GPU in tools/verify.sh, at
+        # 320x180 and 1280x720, and the Windows build is swept in Arena by the
+        # plugin-bench gate. This step checks the shaders compile and run on a
+        # second rasteriser, not the physics.
+        timeout-minutes: 15
+        run: ./build/dltest --emphasis --dispersal --size 320x180 --allow-no-gl
 
-      - name: Controls
-        # At 160x90 and two at a time, because a software rasteriser is slow
-        # and the question is only whether a control changed ANY subpixel.
-        timeout-minutes: 25
-        run: python3 tools/sweep.py --binary build/dltest --size 160x90 --jobs 2 --allow-no-gl
+      - name: Not run here
+        run: |
+          echo "NOT RUN IN CI: --clicks --polarity --threshold --identity --seed --resize --negative"
+          echo "and tools/sweep.py. The software renderer is too slow for them; they run in"
+          echo "tools/verify.sh on the dev Mac. See the Rendered step's comment."
 
       - uses: actions/upload-artifact@v4
         with:
