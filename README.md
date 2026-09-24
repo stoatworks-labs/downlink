@@ -146,8 +146,11 @@ CGL context, plus an `oxbow` load. Still untested:
 
 The coloured grain falls out of the chain and is visible, but no check measures the
 noise spectrum's shape. The Windows build is CI-only and has never run. Nothing has
-been through a show. There is no OpenFX port and no browser demo; neither was in scope
-for 0.1.0.
+been through a show. There is no OpenFX port. The
+[browser demo](https://downlink-demo.stoatworks-labs.com/) runs the plugin's own ten
+shaders, but the link's CPU half — the filter design, the noise statistics, the per-row
+dispersal table, the clock — is a hand port to JavaScript that only a reader checks,
+and a browser has no audio, so Audio Fade does nothing there.
 
 The [user guide](docs/USER-GUIDE.md) covers every control, what it does and why.
 

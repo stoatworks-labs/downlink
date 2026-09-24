@@ -11,6 +11,12 @@
 #                 only build worth measuring is one configured from nothing.
 #   shaders       every shader the plugin compiles, through glslc (the text
 #                 `dltest --dump-shaders` writes is the text the driver gets).
+#   demo          the browser demo's copies of those shaders are still the
+#                 plugin's, character for character. demo/plugin.js necessarily
+#                 holds a second copy of every piece, and two copies drift
+#                 quietly: the plugin keeps working, the page keeps working, and
+#                 they stop being the same effect. It says nothing about the
+#                 demo's PORT of the CPU half; only a reader checks that.
 #   offline       the checks that need no GL -- names, clock, F.405, Rice's
 #                 integrator and its convergence -- and their negative controls.
 #   physics       every GL check, at TWO rasters: 320x180, which is what CI
@@ -75,6 +81,24 @@ if out=$(tools/check-shaders.sh "$DLTEST" 2>&1); then
 else
 	fail "a shader does not compile"
 	printf '%s\n' "$out" | sed 's/^/      /'
+fi
+
+#---------------------------------------------------------------------------
+# The browser demo's copy of the same GLSL. `demo/plugin.js` cannot include a
+# C++ file, so it carries its own copy of every piece -- the link as the macro
+# and its main, joined the way the compiler joins them. Compared character for
+# character: "it is only whitespace" is how a real change gets waved through.
+#---------------------------------------------------------------------------
+step "demo: the browser copy of the shaders"
+if [ -f demo/tools/check_shaders.py ]; then
+	if out=$(python3 demo/tools/check_shaders.py 2>&1); then
+		pass "$( printf '%s\n' "$out" | tail -1 )"
+	else
+		fail "the demo's shaders have drifted from source/Shaders.cpp"
+		printf '%s\n' "$out" | grep -E '^(FAIL|  )' | sed 's/^/      /'
+	fi
+else
+	printf '   skipped: no demo/\n'
 fi
 
 step "offline"

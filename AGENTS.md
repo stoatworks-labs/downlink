@@ -110,6 +110,7 @@ asserts the chain's own figure, which is the one the picture has.
 | `source/PassBuffer.*`, `Diag.*` | tinsel's FFGLFBO with the leak fixed; a log file. |
 | `tools/dltest/` | The harness: renders, measures, predicts, benchmarks, pipes. |
 | `tools/sweep.py`, `tools/verify.sh`, `tools/check-shaders.sh` | No dead controls; all of it; the GLSL through glslc. |
+| `demo/` | The browser demo: a copy of every shader, a PORT of the CPU half, the vendored kit. `demo/tools/check_shaders.py` proves the copies have not drifted. |
 
 The passes, in order (`Shaders.h` has the long form): **resample** the clip to
 1842 × 576 (the active line at 8fsc); **encode** PAL or component, porches at
@@ -429,8 +430,58 @@ Release build, at 320×180 and 1280×720 (the link's numbers are identical at bo
   it and lose 13–36% of the clicks (see `--rice`).
 - **The Windows build is CI-only**, and CI cannot run yet.
 - **Resolume's 64 bins are unmeasured**, as fleet-wide.
-- **No OpenFX port, no browser demo.** Not required for 0.1.0.
+- **No OpenFX port.** Not required for 0.1.0. The browser demo exists; see below for
+  what it is not.
 - **Nothing has been through a show.**
+
+---
+
+## The browser demo
+
+`demo/` is the page at **downlink-demo.stoatworks-labs.com**. Two halves, not equally
+faithful:
+
+- **The GPU passes are the plugin's.** `demo/plugin.js` carries every shader the plugin
+  renders with — the vertex, resample, encode, preemph, detect, deemph, porch, clamp,
+  decode, output, and the link as `LINK_LIBRARY` (the `DOWNLINK_LINK_LIBRARY` macro) plus
+  `LINK_MAIN`, joined as C++ joins adjacent literals. `demo/tools/check_shaders.py`
+  compares all twelve pieces character for character, and the join, and `tools/verify.sh`
+  runs it. `tools/check-shaders.sh` is a different check: it puts the plugin's own
+  shaders (from `dltest --dump-shaders`) through glslc and never looks at the page. The
+  link probe is not carried: only `dltest` runs it.
+- **The CPU half is a port, and nothing checks it but a reader.** `Link.cpp` (both
+  emphasis networks, the lowpass, the IF's taps, the triangle, the row table, the field
+  index, the subcarrier phase), the conversions in `Controls.h`, and `Downlink.cpp`'s
+  `resolve()`, clock voting and every uniform `ProcessOpenGL` sets are ported to JS
+  function for function, in double, with `Math.fround` wherever the C++ is float. It was
+  cross-checked once, by hand, on 2026-09-24: a throwaway program printing Link.cpp's and
+  Controls.h's outputs for a spread of inputs (taps at several bandwidths, row tables at
+  five host times up to 499,217 s, the phases, the conversions) against the port — 12,327
+  numbers, the worst 7.7e-16 relative. That is not a standing check. Change any of those
+  files and change the page by hand.
+
+What the page does not do, all said on it (banner, the disclosure, the line under the
+canvas):
+
+- **No audio.** Audio Fade is on the panel because the plugin declares it, labelled
+  `no audio`; the level is 0, so it changes nothing (measured: 0 pixels differ at full
+  Audio Fade). The `Audio` FFT buffer parameter is not on the panel: nobody sets it by
+  hand and the kit has no buffer control.
+- **Noise Seed is a dropdown** of all 1000 values; the kit has no integer control.
+- **The About block is absent**, as on every page. The test hooks are absent; their inert
+  values are set, as the plugin sets them.
+- **The clock is the page's**, in seconds; the unit vote is ported and settles on seconds
+  after four frames.
+- **Every signal buffer is RGBA32F** (`EXT_color_buffer_float`, as in the plugin). The
+  decoded picture, filtered by the output pass, is RGBA32F where the browser has
+  `OES_texture_float_linear` and RGBA16F where it does not; the page says which.
+
+Decided without asking: **the link runs at its full raster** (2002 × 576, the
+discriminator at 16×), because the clicks the plugin is for depend on it; a weak GPU is
+slow rather than wrong. It ran at 60 fps on an M4 Max through ANGLE/Metal, and rendered
+correctly through SwiftShader. **Colour bars first** in the clip list. **The presets are
+the page's own**, named as such (the plugin ships none), and the two flicker presets say
+so in their names.
 
 ---
 
