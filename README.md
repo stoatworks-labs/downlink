@@ -113,6 +113,13 @@ harness predicts exactly those. Component mode is three separate carriers, an
 idealised MAC. Nobody has measured how Resolume lays out its 64 FFT bins, so
 `Audio Fade` reads their total level and nothing else.
 
+[![Downlink — analogue FM satellite TV, sparklies and all, for Resolume](docs/video-thumb.png)](https://www.youtube.com/watch?v=kTOMrJFzvEs)
+
+*[Watch it](https://www.youtube.com/watch?v=kTOMrJFzvEs) — 49 seconds: CNR falling through the FM threshold until the discriminator clicks, white streaks on black and dark ones on a bright picture, Threshold Ext. moving the knee down, Audio Fade driven by a kick, Video Bandwidth taking the PAL colour away, and Component mode's coloured clicks. Every frame is the real plugin's output: an FFGL plugin has no window,
+so the footage is rendered by this repository's own offline harness
+(`dltest --pipe`, driven by a cue sheet) rather than filmed off a screen, and
+the clips are Resolume's bundled demo media.*
+
 ## Controls
 
 | Group | |
