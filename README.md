@@ -28,6 +28,38 @@ Arena and Avenue.
 Resolume. The test card at CNR 7.5 dB, just under the knee, with the defaults
 otherwise: PAL, 13.5 MHz/V, a 27 MHz IF, Clamp Good.</sub>
 
+<!-- downloads:start -->
+
+## Download
+
+**[v0.1.0](https://github.com/stoatworks-labs/downlink/releases/tag/v0.1.0)** — prebuilt for macOS and Windows. Pick your platform:
+
+<details>
+<summary><b>macOS</b> — Universal (Apple Silicon + Intel)</summary>
+
+| Build | Download | Size |
+| --- | --- | --- |
+| Universal (Apple Silicon + Intel) · .dmg disk image | [`downlink-0.1.0-macos-universal.dmg`](https://github.com/stoatworks-labs/downlink/releases/download/v0.1.0/downlink-0.1.0-macos-universal.dmg) | 243 KB |
+| Universal (Apple Silicon + Intel) · .zip archive | [`downlink-macos-universal.zip`](https://github.com/stoatworks-labs/downlink/releases/latest/download/downlink-macos-universal.zip) | 202 KB |
+
+</details>
+
+<details>
+<summary><b>Windows</b> — x64</summary>
+
+| Build | Download | Size |
+| --- | --- | --- |
+| x64 · .exe installer | [`downlink-0.1.0-windows-x86_64-setup.exe`](https://github.com/stoatworks-labs/downlink/releases/download/v0.1.0/downlink-0.1.0-windows-x86_64-setup.exe) | 229 KB |
+| x64 · .zip archive | [`downlink-windows-x86_64.zip`](https://github.com/stoatworks-labs/downlink/releases/latest/download/downlink-windows-x86_64.zip) | 123 KB |
+
+</details>
+
+All builds, checksums and release notes: [github.com/stoatworks-labs/downlink/releases](https://github.com/stoatworks-labs/downlink/releases).
+
+macOS builds are signed and notarised and open normally. The Windows builds are unsigned, so SmartScreen warns once.
+
+<!-- downloads:end -->
+
 ## The one idea
 
 Analogue satellite TV sent its composite video as **frequency modulation** of a
