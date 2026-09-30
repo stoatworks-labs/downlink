@@ -80,7 +80,7 @@ jobs:
           echo "and tools/sweep.py. The software renderer is too slow for them; they run in"
           echo "tools/verify.sh on the dev Mac. See the Rendered step's comment."
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: downlink-macos-arm64
           path: build/*.bundle
@@ -107,7 +107,7 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --parallel
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: downlink-windows-x86_64
           path: build/Release/*.dll
