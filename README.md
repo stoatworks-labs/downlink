@@ -1,30 +1,27 @@
 # downlink
 
 > **AI-assisted project.** This codebase was created with [Claude](https://claude.com/claude-code)
-> (Anthropic), directed and reviewed by a human author. The satellite link is not
-> asserted but measured: an offline harness drives the real plugin class and the
-> real shaders it runs, and checks each claim against a closed form. The
-> discriminator's clicks, counted in its own output, land on the exact slip rate of
-> a sampled discriminator at four carrier-to-noise ratios across the threshold, and
-> on Rice's formula when it is sampled finely enough. Near white, the negative clicks
-> outnumber the positive ones by what Rice's modulation term predicts. Above the knee
-> the output SNR tracks CNR one dB for one, 20.6 dB above it; the knee sits within
-> 0.2 dB of where Rice and Campbell put it, and threshold extension moves it by what
-> the model says. The dispersal triangle comes through each clamp exactly as
-> predicted, pixel by pixel, at two rasters. The emphasis networks meet ITU-R F.405
-> within its own tolerance. Eight negative controls prove the checks can fail. It has
-> **never been loaded into Resolume on macOS**, where it is loaded by
-> [oxbow](https://github.com/stoatworks-labs/oxbow), which is a real FFGL host and is
-> not Resolume. On Windows, a build of v0.1.0 loads, registers and renders in Resolume
-> Arena 7.27.1 with every control as declared, on software rendering. See
-> [Status](#status).
+> (Anthropic), directed and reviewed by a human author. It has **never been loaded into
+> Resolume on macOS**, where it's loaded by [oxbow](https://github.com/stoatworks-labs/oxbow),
+> which is a proper FFGL host but isn't Resolume. On Windows, a build of v0.1.0 loads, registers
+> and renders in Resolume Arena 7.27.1 with every control as declared, on software rendering. The
+> satellite link is measured rather than taken on trust: an offline harness drives the real
+> plugin class and the real shaders it runs, and checks each claim against a closed form. The
+> clicks counted in the discriminator's own output land on the predicted rate at four
+> carrier-to-noise ratios, the knee sits within 0.2 dB of where Rice and Campbell put it, and the
+> emphasis networks meet ITU-R F.405 within its own tolerance. Eight negative controls prove the
+> checks can fail. The rest of the numbers are under [Status](#status).
 
 Analogue FM satellite television, as an FFGL effect for [Resolume](https://resolume.com)
-Arena and Avenue.
+Arena and Avenue. Your clip goes up to the bird as FM and comes back down through a receiver,
+with everything that used to go wrong on the way: sparklies when the link drops below
+threshold, whole lines jumping when the clamp catches a click, and a picture that rocks if the
+clamp can't keep up with the energy dispersal. There's a slider for rain fade, and the audio
+input can fade the link too, for sparklies on the beat.
 
 ![Colour bars, a grey ramp and a white box on black, received over a satellite link just below threshold: short white and black horizontal streaks scattered over the picture, black ones on the white box and white ones on the black, a few whole lines a shade brighter or darker where the clamp caught a click on the porch](docs/hero.png)
 
-<sub>One frame, rendered by `dltest`, the offline harness — not captured from
+<sub>One frame rendered by `dltest`, the offline harness, rather than captured from
 Resolume. The test card at CNR 7.5 dB, just under the knee, with the defaults
 otherwise: PAL, 13.5 MHz/V, a 27 MHz IF, Clamp Good.</sub>
 
@@ -62,14 +59,14 @@ macOS builds are signed and notarised and open normally. The Windows builds are 
 
 ## The one idea
 
-Analogue satellite TV sent its composite video as **frequency modulation** of a
-carrier, because FM trades bandwidth for noise. That trade has a cliff. Above the FM
-threshold the picture is clean, with a little fine coloured grain. Below it the
-discriminator starts throwing **clicks**: whenever the noise swings the received
-phasor around the origin, the demodulated phase jumps by a whole cycle. Each click is
-a short impulse, smeared by the de-emphasis and the video lowpass into a horizontal
-streak. Those are the **sparklies** a dish slightly off-pointing, or a rain fade,
-filled the picture with.
+Analogue satellite TV sent its composite video as *frequency modulation* of a
+carrier, because FM trades bandwidth for noise. The catch is that the trade has a
+cliff. Above the FM threshold the picture is clean, with a little fine coloured
+grain. Below it the discriminator starts throwing *clicks*: whenever the noise swings
+the received phasor around the origin, the demodulated phase jumps by a whole cycle.
+Each click is a short impulse, smeared by the de-emphasis and the video lowpass into
+a horizontal streak. Those are the *sparklies* that a dish slightly off-pointing, or a
+rain fade, used to fill the picture with.
 
 The plugin builds the link, **PAL → pre-emphasis → FM carrier with energy dispersal →
 noisy channel → Gaussian IF → discriminator → lowpass → de-emphasis → clamp → PAL
@@ -79,7 +76,7 @@ of it.
 
 ## What falls out
 
-None of these is drawn. Each is the link doing what it does:
+Nothing here is drawn on. It all comes out of the link:
 
 - **Fine coloured grain above threshold.** FM noise rises with frequency, so after the
   de-emphasis its worst lands at the top of the video band, on the chroma subcarrier,
@@ -104,21 +101,24 @@ None of these is drawn. Each is the link doing what it does:
 
 ### The honest limit
 
-The receiver is one design. The IF is Gaussian rather than any particular SAW filter.
-Threshold extension is an ideal tracking filter, not a PLL, so it has no modulation
-term. The decoder's colour reference is perfect: there is no burst, so no hue error
-from noise on it. The discriminator is sampled, and a sampled discriminator misses
-clicks that come and go within a sample: 3.6% of Rice's rate at 4 dB, 11% at 10 dB. The
-harness predicts exactly those. Component mode is three separate carriers, an
-idealised MAC. Nobody has measured how Resolume lays out its 64 FFT bins, so
-`Audio Fade` reads their total level and nothing else.
+There's only one receiver design. The IF is Gaussian rather than any particular SAW
+filter, and threshold extension is an ideal tracking filter rather than a PLL, so it
+has no modulation term. The decoder's colour reference is perfect: there's no burst,
+so there's no hue error from noise on it. The discriminator is sampled, and a sampled
+discriminator misses clicks that come and go within a sample (3.6% of Rice's rate at
+4 dB, 11% at 10 dB), which the harness predicts exactly. Component mode is three
+separate carriers, an idealised MAC. Nobody's measured how Resolume lays out its 64
+FFT bins, so `Audio Fade` reads their total level and nothing else.
 
 [![Downlink — analogue FM satellite TV, sparklies and all, for Resolume](docs/video-thumb.png)](https://www.youtube.com/watch?v=kTOMrJFzvEs)
 
-*[Watch it](https://www.youtube.com/watch?v=kTOMrJFzvEs) — 49 seconds: CNR falling through the FM threshold until the discriminator clicks, white streaks on black and dark ones on a bright picture, Threshold Ext. moving the knee down, Audio Fade driven by a kick, Video Bandwidth taking the PAL colour away, and Component mode's coloured clicks. Every frame is the real plugin's output: an FFGL plugin has no window,
-so the footage is rendered by this repository's own offline harness
-(`dltest --pipe`, driven by a cue sheet) rather than filmed off a screen, and
-the clips are Resolume's bundled demo media.*
+*[Watch it](https://www.youtube.com/watch?v=kTOMrJFzvEs) (49 seconds): CNR falling
+through the FM threshold until the discriminator clicks, white streaks on black and dark
+ones on a bright picture, Threshold Ext. moving the knee down, Audio Fade driven by a kick,
+Video Bandwidth taking the PAL colour away, and Component mode's coloured clicks. It's all
+the plugin's own output. An FFGL plugin doesn't have a window to film, so the footage
+comes from this repo's offline harness (`dltest --pipe`, driven by a cue sheet) rather
+than a screen, and the clips are Resolume's bundled demo media.*
 
 ## Controls
 
@@ -130,18 +130,18 @@ the clips are Resolume's bundled demo media.*
 | **Signal** | Composite (PAL, Component), Mix. |
 
 The defaults are a full-transponder PAL link a little under par: 13.5 MHz/V, 2 MHz of
-dispersal, a 27 MHz IF, 9 dB CNR, a good clamp. The picture is clean but for a few
+dispersal, a 27 MHz IF, 9 dB CNR, a good clamp. The picture's clean apart from a few
 dozen sparklies a field. Pull CNR down 2 dB and they take over.
 
 ## Status
 
-**v0.1.0, and honestly early. 23 September 2026.**
+**v0.1.0, 23 September 2026, and still early days.**
 
 ### Measured offline, on macOS
 
-`tools/verify.sh` passes on this machine (M4 Max, macOS 26.4) against a fresh
-universal Release build, running every check at **two rasters**, 320×180 and
-1280×720. What it establishes, in numbers:
+`tools/verify.sh` passes on my Mac (M4 Max, macOS 26.4) against a fresh
+universal Release build, running every check at two rasters, 320×180 and
+1280×720. Here's what that shows, in numbers:
 
 | check | result |
 | --- | --- |
@@ -159,7 +159,7 @@ universal Release build, running every check at **two rasters**, 320×180 and
 | the bundle | universal (`x86_64 arm64`), exports `plugMain`, ad-hoc signs; `oxbow` reports `SW Downlink` / `DL01` / `effect` and renders 120 frames through `plugMain` |
 
 Render cost at the defaults, best of three runs of 30 frames after a warm-up,
-`glFinish` both sides, on a GPU shared with other builds:
+`glFinish` both sides, on a GPU that was busy with other builds:
 
 | | PAL ms/frame | % of a 60fps frame | Component ms/frame |
 | --- | --- | --- | --- |
@@ -168,9 +168,9 @@ Render cost at the defaults, best of three runs of 30 frames after a warm-up,
 | 3840×2160 | 3.7 | 22.3% | 6.5 |
 
 The link runs at its own raster whatever the output size, so the output size hardly
-matters; the numbers move with whatever else the GPU was doing. The discriminator is
-most of it (1.5 ms by timer query for PAL, 4.2 ms for Component's three carriers).
-macOS figures only.
+matters, and the numbers move about with whatever else the GPU was doing. The
+discriminator is most of it (1.5 ms by timer query for PAL, 4.2 ms for Component's
+three carriers). These are macOS figures only.
 
 ### In Resolume, on Windows
 
@@ -179,8 +179,8 @@ v0.1.0 loads from Extra Effects, registers as `SW Downlink` / `DL01` / effect, a
 host controls match the declaration in name, order, type, range and default, it
 renders, and Arena's log stays clean: 9 of 9 of the fleet gate's checks. 11 controls
 moved the picture, 2 of them under a precondition. Deviation, Dispersal and IF
-Bandwidth read inconclusive, because the link's noise changes every frame; the two
-audio controls, Audio and Audio Fade, could not be tested, because win-lab has no
+Bandwidth read inconclusive, because the link's noise changes every frame, and the
+two audio controls, Audio and Audio Fade, couldn't be tested, because win-lab has no
 sound device. Software rendering says nothing about a GPU or about speed.
 
 ### Not established
@@ -189,25 +189,26 @@ It has **never been loaded into Resolume on macOS**. Everything above the Window
 section was compiled, rendered and measured offline against the real plugin class in
 a headless CGL context, plus an `oxbow` load. Still untested:
 
-- how 15 controls in four groups, one of them the audio input, present in Arena's
-  inspector on a Mac;
+- how 15 controls in four groups, one of them the audio input, look in Arena's
+  inspector on a Mac
 - whether 3 ms of GPU (6 for Component) is comfortable beside other effects on a
-  show machine;
-- what Resolume's FFT bins are, and so how hard `Audio Fade` bites;
-- what the host's real clock does over a long session.
+  show machine
+- what Resolume's FFT bins are, and so how hard `Audio Fade` bites
+- what the host's real clock does over a long session
 
-The coloured grain falls out of the chain and is visible, but no check measures the
-noise spectrum's shape. Nothing has been through a show. There is no OpenFX port. The
-[browser demo](https://downlink-demo.stoatworks-labs.com/) runs the plugin's own ten
-shaders, but the link's CPU half — the filter design, the noise statistics, the per-row
-dispersal table, the clock — is a hand port to JavaScript that only a reader checks,
-and a browser has no audio, so Audio Fade does nothing there.
+The coloured grain falls out of the chain and you can see it, but no check measures
+the noise spectrum's shape. It hasn't been used on a show, and there's no OpenFX
+port. The [browser demo](https://downlink-demo.stoatworks-labs.com/) runs the
+plugin's own ten shaders, but the link's CPU half (the filter design, the noise
+statistics, the per-row dispersal table and the clock) is a hand port to JavaScript
+that only a reader checks, and a browser has no audio, so Audio Fade does nothing
+there.
 
 The [user guide](docs/USER-GUIDE.md) covers every control, what it does and why.
 
 ## Build
 
-Needs CMake 3.15+, a C++17 compiler, and the FFGL SDK submodule.
+You'll need CMake 3.15+, a C++17 compiler and the FFGL SDK submodule.
 
 ```bash
 git clone --recursive https://github.com/stoatworks-labs/downlink
@@ -218,12 +219,12 @@ cmake --install build     # into ~/Documents/Resolume Arena/Extra Effects
 ```
 
 macOS builds are universal (Apple Silicon + Intel) by default. Add
-`-DCMAKE_OSX_ARCHITECTURES=arm64` for a faster dev build. Windows needs GLEW via
+`-DCMAKE_OSX_ARCHITECTURES=arm64` for a quicker dev build. Windows needs GLEW via
 vcpkg.
 
 ## Building and testing
 
-The offline harness renders the real plugin class headlessly, on a synthetic 60 fps
+The offline harness renders the plugin class itself, headless, on a synthetic 60 fps
 clock:
 
 ```bash
@@ -239,9 +240,9 @@ python3 tools/sweep.py                                 # no control is silently 
 tools/verify.sh                                        # all of it, on a fresh universal build
 ```
 
-Every check takes `--size`. Run them at 320×180 as well as the raster you care about.
-`--pipe` takes raw RGBA frames on stdin and writes them to stdout, with an optional
-cue sheet, for rendering footage through the real shaders.
+Every check takes `--size`, so run them at 320×180 as well as whatever raster you care
+about. `--pipe` takes raw RGBA frames on stdin and writes them to stdout, with an
+optional cue sheet, for rendering footage through the plugin's own shaders.
 
 See [`CLAUDE.md`](CLAUDE.md) for the full command reference and
 [`AGENTS.md`](AGENTS.md) for the model, the derivation and the traps.
